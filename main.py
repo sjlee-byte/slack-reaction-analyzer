@@ -6,7 +6,7 @@ import time
 
 import anthropic
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 app = FastAPI()
@@ -223,8 +223,25 @@ def analyze_with_claude(thread_context: str) -> str:
 
 # ── Main event endpoint ───────────────────────────────────────────────────────
 
+def process_reaction(channel: str, ts: str) -> None:
+    try:
+        thread_context, permalink = build_thread_context(channel, ts)
+        analysis = analyze_with_claude(thread_context)
+        dm_text = (
+            f":thinking_face: *J's AI Assistant 분석*\n"
+            f"*원문 링크:* {permalink}\n\n"
+            f"{analysis}"
+        )
+        send_dm(MY_SLACK_USER_ID, dm_text)
+    except Exception as e:
+        try:
+            send_dm(MY_SLACK_USER_ID, f":warning: 분석 중 오류 발생\n```{e}```")
+        except Exception:
+            pass
+
+
 @app.post("/slack/events")
-async def slack_events(request: Request):
+async def slack_events(request: Request, background_tasks: BackgroundTasks):
     body_bytes = await request.body()
     payload = json.loads(body_bytes)
 
@@ -256,23 +273,8 @@ async def slack_events(request: Request):
     channel = item.get("channel", "")
     ts = item.get("ts", "")
 
-    try:
-        thread_context, permalink = build_thread_context(channel, ts)
-        analysis = analyze_with_claude(thread_context)
-
-        dm_text = (
-            f":thinking_face: *J's AI Assistant 분석*\n"
-            f"*원문 링크:* {permalink}\n\n"
-            f"{analysis}"
-        )
-        send_dm(MY_SLACK_USER_ID, dm_text)
-
-    except Exception as e:
-        try:
-            send_dm(MY_SLACK_USER_ID, f":warning: 분석 중 오류 발생\n```{e}```")
-        except Exception:
-            pass
-
+    # 즉시 200 반환 후 백그라운드에서 처리 (Slack 재전송 방지)
+    background_tasks.add_task(process_reaction, channel, ts)
     return Response(status_code=200)
 
 
