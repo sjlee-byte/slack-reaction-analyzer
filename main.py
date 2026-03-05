@@ -226,17 +226,17 @@ def analyze_with_claude(thread_context: str) -> str:
 @app.post("/slack/events")
 async def slack_events(request: Request):
     body_bytes = await request.body()
+    payload = json.loads(body_bytes)
 
+    # URL verification challenge (서명 검증 전에 처리)
+    if payload.get("type") == "url_verification":
+        return JSONResponse({"challenge": payload["challenge"]})
+
+    # 일반 이벤트는 서명 검증
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
     signature = request.headers.get("X-Slack-Signature", "")
     if not verify_slack_signature(body_bytes, timestamp, signature):
         raise HTTPException(status_code=403, detail="Invalid signature")
-
-    payload = json.loads(body_bytes)
-
-    # URL verification challenge
-    if payload.get("type") == "url_verification":
-        return JSONResponse({"challenge": payload["challenge"]})
 
     event = payload.get("event", {})
     if event.get("type") != "reaction_added":
