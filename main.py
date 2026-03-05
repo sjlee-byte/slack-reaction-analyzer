@@ -11,10 +11,10 @@ from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-SLACK_BOT_TOKEN = os.environ["SLACK_TOKEN"]
-SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-MY_SLACK_USER_ID = os.environ["MY_SLACK_USER_ID"]
+SLACK_BOT_TOKEN = os.environ.get("SLACK_TOKEN", "")
+SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+MY_SLACK_USER_ID = os.environ.get("MY_SLACK_USER_ID", "")
 
 TARGET_EMOJI = "thinking_face"  # Slack stores 🤔 as "thinking_face"
 
