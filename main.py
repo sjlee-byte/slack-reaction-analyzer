@@ -22,6 +22,10 @@ TARGET_EMOJIS = {"thinking_face", "loading", "확인중", "saved-for-later"}
 _processed_events: dict[str, float] = {}
 _EVENT_TTL = 300  # 5분 후 만료
 
+# 동일 메시지 중복 분석 방지: "channel:ts" → 처리 시각 (이모지 여러 개 달아도 1회만)
+_processed_messages: dict[str, float] = {}
+_MSG_TTL = 3600  # 1시간
+
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 SYSTEM_PROMPT = """당신은 오늘의집 CEO J의 AI 어시스턴트입니다. 슬랙 메시지를 보고 J라면 어떻게 판단할지 의견을 줘.
@@ -208,10 +212,16 @@ def build_thread_context(channel: str, ts: str) -> tuple[str, str]:
 # ── Claude analysis ───────────────────────────────────────────────────────────
 
 def analyze_with_claude(thread_context: str) -> str:
-    response = anthropic_client.messages.create(
+    response = anthropic_client.beta.prompt_caching.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=SYSTEM_PROMPT,
+        max_tokens=1024,
+        system=[
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         messages=[
             {
                 "role": "user",
@@ -221,6 +231,7 @@ def analyze_with_claude(thread_context: str) -> str:
                 ),
             }
         ],
+        betas=["prompt-caching-2024-07-31"],
     )
     return response.content[0].text
 
@@ -288,6 +299,16 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
 
     channel = item.get("channel", "")
     ts = item.get("ts", "")
+
+    # 동일 메시지 중복 분석 방지 (여러 이모지 달아도 1회만)
+    msg_key = f"{channel}:{ts}"
+    now2 = time.time()
+    for k in list(_processed_messages):
+        if now2 - _processed_messages[k] > _MSG_TTL:
+            del _processed_messages[k]
+    if msg_key in _processed_messages:
+        return Response(status_code=200)
+    _processed_messages[msg_key] = now2
 
     # 즉시 200 반환 후 백그라운드에서 처리 (Slack 재전송 방지)
     background_tasks.add_task(process_reaction, channel, ts)
