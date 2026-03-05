@@ -18,6 +18,10 @@ MY_SLACK_USER_ID = os.environ.get("MY_SLACK_USER_ID", "")
 
 TARGET_EMOJIS = {"thinking_face", "loading", "확인중", "saved-for-later"}
 
+# 중복 이벤트 방지: event_id → 처리 시각
+_processed_events: dict[str, float] = {}
+_EVENT_TTL = 300  # 5분 후 만료
+
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 SYSTEM_PROMPT = """당신은 오늘의집 CEO J의 AI 어시스턴트입니다. 슬랙 메시지를 보고 J라면 어떻게 판단할지 의견을 줘.
@@ -248,6 +252,18 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
     # URL verification challenge (서명 검증 전에 처리)
     if payload.get("type") == "url_verification":
         return JSONResponse({"challenge": payload["challenge"]})
+
+    # 중복 이벤트 제거
+    event_id = payload.get("event_id", "")
+    now = time.time()
+    # 만료된 항목 정리
+    for eid in list(_processed_events):
+        if now - _processed_events[eid] > _EVENT_TTL:
+            del _processed_events[eid]
+    if event_id and event_id in _processed_events:
+        return Response(status_code=200)
+    if event_id:
+        _processed_events[event_id] = now
 
     # 일반 이벤트는 서명 검증
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
