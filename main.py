@@ -16,7 +16,7 @@ SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 MY_SLACK_USER_ID = os.environ.get("MY_SLACK_USER_ID", "")
 
-TARGET_EMOJI = "thinking_face"  # Slack stores 🤔 as "thinking_face"
+TARGET_EMOJIS = {"thinking_face", "loading", "확인중", "saved-for-later"}
 
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -245,8 +245,8 @@ async def slack_events(request: Request):
     reaction = event.get("reaction", "")
     reactor_id = event.get("user", "")
 
-    # 🤔 이고 본인이 단 경우만 처리
-    if reaction != TARGET_EMOJI or reactor_id != MY_SLACK_USER_ID:
+    # 지정 이모지이고 본인이 단 경우만 처리
+    if reaction not in TARGET_EMOJIS or reactor_id != MY_SLACK_USER_ID:
         return Response(status_code=200)
 
     item = event.get("item", {})
