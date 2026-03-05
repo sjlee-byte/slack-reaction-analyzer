@@ -279,3 +279,13 @@ async def slack_events(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/debug")
+def debug():
+    return {
+        "SLACK_TOKEN_set": bool(SLACK_BOT_TOKEN),
+        "SLACK_SIGNING_SECRET_set": bool(SLACK_SIGNING_SECRET),
+        "ANTHROPIC_API_KEY_set": bool(ANTHROPIC_API_KEY),
+        "MY_SLACK_USER_ID": MY_SLACK_USER_ID,
+    }
