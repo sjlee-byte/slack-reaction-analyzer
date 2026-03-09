@@ -137,15 +137,12 @@ def slack_post(path: str, payload: dict) -> dict:
 
 
 def get_message(channel: str, ts: str) -> dict:
-    """단일 메시지 dict 반환."""
-    data = slack_get(
-        "conversations.history",
-        {"channel": channel, "oldest": ts, "latest": ts, "inclusive": "true", "limit": 1},
-    )
-    messages = data.get("messages", [])
-    if not messages:
+    """단일 메시지 dict 반환. reactions.get으로 top-level/스레드 답글 모두 처리."""
+    data = slack_get("reactions.get", {"channel": channel, "timestamp": ts, "full": "true"})
+    msg = data.get("message")
+    if not msg:
         raise RuntimeError("Message not found")
-    return messages[0]
+    return msg
 
 
 def get_thread_messages(channel: str, thread_ts: str) -> list[dict]:
