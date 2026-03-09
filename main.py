@@ -212,13 +212,7 @@ def analyze_with_claude(thread_context: str) -> str:
     response = anthropic_client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=SYSTEM_PROMPT,
         messages=[
             {
                 "role": "user",
@@ -228,7 +222,6 @@ def analyze_with_claude(thread_context: str) -> str:
                 ),
             }
         ],
-        betas=["prompt-caching-2024-07-31"],
     )
     return response.content[0].text
 
