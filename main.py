@@ -212,7 +212,7 @@ def build_thread_context(channel: str, ts: str) -> tuple[str, str]:
 # ── Claude analysis ───────────────────────────────────────────────────────────
 
 def analyze_with_claude(thread_context: str) -> str:
-    response = anthropic_client.beta.prompt_caching.messages.create(
+    response = anthropic_client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
         system=[
