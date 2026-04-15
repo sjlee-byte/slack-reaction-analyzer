@@ -34,6 +34,17 @@ Slack 메시지에 특정 이모지를 달면 해당 메시지(+ 스레드 전�
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
 | `MY_SLACK_USER_ID` | 본인 Slack User ID (예: `U012AB3CD`) |
 
+### Athena 연결용 (선택)
+
+| 변수 | 설명 |
+|------|------|
+| `AWS_ACCESS_KEY_ID` | AWS Access Key |
+| `AWS_SECRET_ACCESS_KEY` | AWS Secret Key |
+| `AWS_REGION` | AWS 리전 (기본: `ap-northeast-2`) |
+| `ATHENA_S3_OUTPUT` | 쿼리 결과 저장 S3 경로 (예: `s3://your-bucket/athena-results/`) |
+| `ATHENA_DATABASE` | Athena 데이터베이스 이름 (기본: `default`) |
+| `ATHENA_WORKGROUP` | Athena Workgroup (기본: `primary`) |
+
 ---
 
 ## Slack App 설정 방법
@@ -130,3 +141,62 @@ uvicorn main:app --reload --port 8000
 ngrok http 8000
 # → https://xxxx.ngrok.io/slack/events
 ```
+
+---
+
+## Athena API 사용법
+
+### 테이블 목록 조회
+```bash
+curl https://your-app.railway.app/athena/tables
+```
+
+### 쿼리 실행
+```bash
+curl -X POST https://your-app.railway.app/athena/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM your_table LIMIT 10", "max_rows": 100}'
+```
+
+### AWS IAM 권한
+Athena 쿼리를 위해 IAM 사용자에게 다음 권한이 필요합니다:
+- `AmazonAthenaFullAccess` 또는 커스텀 정책:
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "athena:StartQueryExecution",
+          "athena:GetQueryExecution",
+          "athena:GetQueryResults",
+          "athena:StopQueryExecution"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::your-bucket",
+          "arn:aws:s3:::your-bucket/*"
+        ]
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:GetDatabase",
+          "glue:GetDatabases"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+  ```
